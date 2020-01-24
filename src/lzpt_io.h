@@ -38,5 +38,7 @@ extern	void	lzpt_free_toc(unsigned char *p_toc, size_t toc_nentries);
 extern	int	is_lzpt_file(const char *fname);
 extern	int	lzpt_decompress_file(const char *fname_in, const char *fname_out);
 
+extern  int lzpt_compress_file(const char * fname_in, const char * fname_out, int lztp_version, int level);
+
 #endif // LZPT_IO_H
 

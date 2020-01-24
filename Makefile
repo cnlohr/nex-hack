@@ -31,6 +31,10 @@ INCLUDES := $(wildcard $(SRCDIR)/*.h)
 OBJECTS  := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 rm       = rm -f
 
+all : $(BINDIR)/$(TARGET) $(BINDIR)/lzpt_writer
+
+$(BINDIR)/lzpt_writer : lzpt_writer.c src/lzpt_io.c src/lz77_inflate.c
+	$(LINKER) $@ $^ $(LDFLAGS) $(CFLAGS) -lz
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
 	$(LINKER) $@ $(OBJECTS) $(LDFLAGS)

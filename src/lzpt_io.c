@@ -395,9 +395,9 @@ int lzpt_compress_file(const char * fname_in, const char * fname_out, int lztp_v
 				goto exit_common;
 			}
 			//printf( "In: %d out: %d\n", pmax_dblksz, ret );
-			int compressed_size_aligned = (ret + LZPT_BLOCK_ALIGN_MASK) & (~LZPT_BLOCK_ALIGN_MASK);
-			printf( "%d / %d\n", compressed_size_aligned, ret );
-			//int compressed_size_aligned = ret;
+			//int compressed_size_aligned = (ret + LZPT_BLOCK_ALIGN_MASK) & (~LZPT_BLOCK_ALIGN_MASK);
+			int compressed_size_aligned = ret;
+//			printf( "%d / %d\n", compressed_size_aligned, ret );
 			compressed_size += compressed_size_aligned;
 			r = fwrite(compressed_buffer, compressed_size_aligned, 1, fh_out);
 			if( r != 1 )
@@ -406,6 +406,14 @@ int lzpt_compress_file(const char * fname_in, const char * fname_out, int lztp_v
 				retval = 4;
 				goto exit_common;
 			}
+		}
+		int bump_align = compressed_size & LZPT_BLOCK_ALIGN_MASK;
+		if( bump_align )
+		{
+			int bump_amt = 4-bump_align;
+			uint32_t zeroes = 0;
+			compressed_size += bump_amt;
+			r = fwrite(&zeroes, bump_amt, 1, fh_out);
 		}
 		printf( "Block size: %d\n", compressed_size );
 		compressed_data_size += compressed_size;

@@ -14,6 +14,7 @@ void log_it(char *pinfo) { fprintf( stderr, "%s\n", pinfo ); }
 
 int main( int argc, char ** argv )
 {
+	fprintf( stderr, "WARNING WARNING WARNING:  I have not vetted that this tool does not create bricked images!!! I tested both changes and this tool at the same time and between the two, my camera bricked. :(\n" );
 	int c;
 	const char * infile = 0;
 	const char * outfile = 0;

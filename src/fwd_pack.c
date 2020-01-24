@@ -115,7 +115,7 @@ do_repack(const char *dirname_in, const int fwt_level, const int fwt_majorver, c
 	sprintf(fname_fwdata_orig, "%s/%s", enc_dirname_out, FWD_ORIG_GEN_NAME);
 	sprintf(fname_fwdata_save, "%s/%s%s", enc_dirname_out, FWD_ORIG_GEN_NAME, FWD_SAVE_SUFFIX);
 	if (rename(fname_fwdata_orig, fname_fwdata_save) != 0) {
-		fprintf(stderr, "do_repack() rename orig fwdata returned error!\n");
+		fprintf(stderr, "do_repack() rename orig fwdata returned error! (%s) -> (%s)\n", fname_fwdata_orig, fname_fwdata_save );
 		return 1;
 	}
 

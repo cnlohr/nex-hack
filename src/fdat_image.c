@@ -292,9 +292,11 @@ fdat_repack(const char *fname_fdat, const char *fname_fdat_repack, const char *d
     // filesize fs images
 	for (num_fs=0; num_fs<MAX_FDAT_FS_IMAGES-1; num_fs++) {
 		sprintf(fname_fsimg, "%s/%s%02d%s", dirname_parts, BASENAME_FDAT_FS_PREFIX, num_fs, FSIMAGE_EXT_MOD);
+		fprintf(stderr, "Opening: %s\n", fname_fsimg );
 		if ((fh_in = fopen(fname_fsimg, "rb"))) {
 			fseek(fh_in, 0L, SEEK_END); filesize = ftell(fh_in); fseek(fh_in, 0L, SEEK_SET);
 			outfilesize += filesize;
+			fprintf( stderr,  "   %d\n", filesize );
 			sprintf(plog_global, "FDAT outfilesize (added up): '%s' '%d'='%#04x' (fsz='%#04x')\n", fname_fsimg, outfilesize, outfilesize, filesize); log_it(plog_global);
 			fclose(fh_in);
 		}

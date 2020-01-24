@@ -30,7 +30,6 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "zlib.h"
 
 #include "fwt_names.h"
 #include "fwt_util.h"
@@ -273,6 +272,7 @@ lzpt_decompress_file(const char *fname_in, const char *fname_out)
 			fprintf(stderr, "Error decompressing LZTP block #%d\n", i);
 			goto exit_err;
 		}
+		printf( "lzpt_decompress_block( -, %d, %d, -, %d\n", sz_enc_block, sz_max_dec_block, sz_dec_block );
 		free((void *)p_enc_block); p_enc_block = NULL;
 
 		if (fwrite(p_dec_block, 1, sz_dec_block, fh_out) != sz_dec_block) {
@@ -281,7 +281,8 @@ lzpt_decompress_file(const char *fname_in, const char *fname_out)
 		}
 		free((void *)p_dec_block); p_dec_block = NULL;
 	}
-
+	printf( ".\n" );
+	
 	fclose(fh_in); fh_in = NULL;
 	fclose(fh_out); fh_out = NULL;
 
@@ -308,10 +309,11 @@ exit_common:
 	return retval;
 }
 
-int lzpt_compress_file(const char * fname_in, const char * fname_out, int lztp_version, int level)
+int lzpt_compress_file(const char * fname_in, const char * fname_out, int lztp_version)
 {
 	int ret = 0;
 	int retval = 0;
+	uint8_t * contextbuffer = 0;
 	uint8_t * buffer = 0;
 	uint8_t * compressed_buffer;
 	uint32_t * tocdata = 0;
@@ -320,7 +322,6 @@ int lzpt_compress_file(const char * fname_in, const char * fname_out, int lztp_v
 	fseek(fh_in, 0, SEEK_END);
 	int in_len = ftell(fh_in);
 	fseek(fh_in, 0, SEEK_SET);
-    z_stream strm;
 
 	FILE * fh_out = fopen(fname_out, "wb" );
 	if( !fh_out ) goto exit_common;
@@ -357,23 +358,15 @@ int lzpt_compress_file(const char * fname_in, const char * fname_out, int lztp_v
 	fwrite((uint8_t*)&val_write, sizeof(uint32_t), 1, fh_out);
 	fwrite((uint8_t*)&val_write, sizeof(uint32_t), 1, fh_out);
 
-    /* allocate deflate state */
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    if (ret != Z_OK)
-	{
-		fprintf( stderr, "deflateInit failed\n" );
-		retval = 5;
-		goto exit_common;
-	}		
-	
 	//At 0x18 -> Pre-allocate TOC.
 	tocdata = malloc(tocsize_bytes);
 	fwrite( tocdata, tocsize_bytes, 1, fh_out );
 	buffer = malloc(pmax_dblksz);
+	int contextsize = LZ77_WORKSPACE_SIZE(pmax_dblksz*2);
+	contextbuffer = malloc(contextsize);
 	int chunkout = pmax_dblksz*2;
 	compressed_buffer = malloc(chunkout);
+
 	int i;
 	int compressed_data_size = 0;
 	for(i = 0; i < blocks; i++)
@@ -385,32 +378,37 @@ int lzpt_compress_file(const char * fname_in, const char * fname_out, int lztp_v
 			retval = 1;
 			goto exit_common;
 		}
-		memset(compressed_buffer, 0, chunkout);
-	    ret = deflateInit(&strm, level);
-        strm.avail_in = r;
-		printf( "Read: %d\n", r );
-		strm.next_in = buffer;
-		strm.avail_out = chunkout;
-		strm.next_out = compressed_buffer;
-		ret = deflate(&strm, Z_FINISH);    /* no bad return value */
-		if( ret == Z_STREAM_ERROR)
-		{
-			fprintf(stderr, "Error: ZLib deflate error\n" );
-			retval = 6;
-			goto exit_common;
-		}
-		int compressed_size = chunkout - strm.avail_out;
-		compressed_data_size += compressed_size;
-		int compressed_size_aligned = (compressed_size + LZPT_BLOCK_ALIGN_MASK) & (~LZPT_BLOCK_ALIGN_MASK);
+		int maxchunksize = 4096;
+		int mkplace;
 		int write_place = ftell(fh_out);
-		r = fwrite(compressed_buffer, compressed_size_aligned, 1, fh_out);
-		if( r != 1 )
+		int compressed_size = 0;
+
+		for( mkplace = 0; mkplace < pmax_dblksz; mkplace += maxchunksize )
 		{
-			fprintf(stderr, "Error: could not write data in chunk %d\n", i );
-			retval = 4;
-			goto exit_common;
+			memset(compressed_buffer, 0, chunkout);
+
+			ret = lz77_deflate( buffer+mkplace, maxchunksize, compressed_buffer, chunkout, contextbuffer, contextsize);
+			if( ret < 0 )
+			{
+				fprintf( stderr, "lz77_deflate failed.\n" );
+				retval = ret;
+				goto exit_common;
+			}
+			//printf( "In: %d out: %d\n", pmax_dblksz, ret );
+			int compressed_size_aligned = (ret + LZPT_BLOCK_ALIGN_MASK) & (~LZPT_BLOCK_ALIGN_MASK);
+			printf( "%d / %d\n", compressed_size_aligned, ret );
+			//int compressed_size_aligned = ret;
+			compressed_size += compressed_size_aligned;
+			r = fwrite(compressed_buffer, compressed_size_aligned, 1, fh_out);
+			if( r != 1 )
+			{
+				fprintf(stderr, "Error: could not write data in chunk %d\n", i );
+				retval = 4;
+				goto exit_common;
+			}
 		}
-		(void)deflateEnd(&strm);
+		printf( "Block size: %d\n", compressed_size );
+		compressed_data_size += compressed_size;
 		tocdata[i*2+0] = le32toh(write_place);
 		tocdata[i*2+1] = le32toh(compressed_size);
 	}
@@ -423,6 +421,7 @@ exit_common:
 	if (fh_in) fclose(fh_in);
 	if (buffer) free(buffer);
 	if (tocdata) free(tocdata);
+	if (contextbuffer) free(contextbuffer);
 	if (fh_out) fclose(fh_out);
 	return retval;
 }

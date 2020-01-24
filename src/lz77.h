@@ -127,6 +127,6 @@ struct lz77_union {
 #define LZ77_WORKSPACE_SIZE(winlen) (HASH_SIZE+sizeof(short)*(winlen))
 
 int lz77_inflate(unsigned char *, int, unsigned char *, int, unsigned char **);
-int lz77_deflate(unsigned char *, int, unsigned char *, int, void *, int);
+int lz77_deflate(unsigned char *src, int len, unsigned char *dst, int dst_len, void *workspace, int wl);
 
 #endif

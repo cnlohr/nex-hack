@@ -33,7 +33,7 @@ rm       = rm -f
 
 all : $(BINDIR)/$(TARGET) $(BINDIR)/lzpt_writer
 
-$(BINDIR)/lzpt_writer : lzpt_writer.c src/lzpt_io.c src/lz77_inflate.c
+$(BINDIR)/lzpt_writer : lzpt_writer.c src/lzpt_io.c src/lz77_inflate.c src/lz77_deflate.c
 	$(LINKER) $@ $^ $(LDFLAGS) $(CFLAGS) -lz
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
